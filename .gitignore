@@ -1,0 +1,4 @@
+.env
+.venv
+sesc_auth_sdk.egg-info
+.idea/
