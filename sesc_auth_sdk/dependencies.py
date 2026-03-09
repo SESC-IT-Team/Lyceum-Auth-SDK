@@ -7,7 +7,7 @@ from sesc_auth_sdk.schemas.user import UserSchema
 
 
 class LyceumAuth:
-    def __init__(self, allowed_roles: Optional[list[Role]]):
+    def __init__(self, allowed_roles: Optional[list[Role]] = None):
         self.allowed_roles = allowed_roles
 
     @staticmethod
