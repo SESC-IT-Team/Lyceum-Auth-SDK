@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sesc-auth-sdk"
 version = "0.1.0"
-description = "Add your description here"
+description = "SDK for authentification into SESC IT Team services for SESC"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.135.1",
     "pydantic-settings>=2.13.1",
 ]
