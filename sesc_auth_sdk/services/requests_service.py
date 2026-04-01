@@ -10,7 +10,7 @@ class RequestsService:
     async def get_jwks() -> JwksResponse:
         res: JwksResponse
         async with ClientSession() as session:
-            async with session.get(settings.jwks_url) as response:
+            async with session.get(settings.auth_base_url + '/api/v1/auth/jwks') as response:
                 res = JwksResponse(**(await response.json()))
         return res
 
