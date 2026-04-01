@@ -41,8 +41,8 @@ class LyceumAuth:
             )
         return token_payload
 
-    async def return_user(self, token: str = Depends(_get_token)) -> UserSchema:
-        await self()
+    async def return_user(self, token: str = Depends(_get_token), token_payload: JwtPayload = Depends(verify_authorized)) -> UserSchema:
+        await self(token_payload)
         return await RequestsService.get_me(token)
 
     @staticmethod
