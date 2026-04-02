@@ -10,5 +10,6 @@ class AuthSDKConfig(BaseSettings):
     )
 
     auth_base_url: str
+    jwks_ttl: int = 900
 
 settings = AuthSDKConfig()

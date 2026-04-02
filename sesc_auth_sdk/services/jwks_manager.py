@@ -1,3 +1,6 @@
+import asyncio
+from datetime import datetime, timedelta
+
 import jwt
 from jose import JWTError
 
@@ -7,10 +10,17 @@ from sesc_auth_sdk.schemas.jwt import JwtHeaders, JwtPayload
 from sesc_auth_sdk.services.requests_service import RequestsService
 
 class JWKSManagerClass:
+    _ttl = timedelta(seconds=settings.jwks_ttl)
+
     def __init__(self):
+        self._prev_update_time: datetime = datetime(0, 0, 0, 0)
         self._keys: dict[str, Jwk] = {}
+        self._lock = asyncio.Lock()
+        self.update_keys()
 
     async def get_key(self, kid: str):
+        if self._prev_update_time + self._ttl < datetime.now():
+            await self.update_keys()
         try:
             return self._keys[kid]
         except KeyError:
@@ -18,10 +28,13 @@ class JWKSManagerClass:
             return self._keys.get(kid)
 
     async def update_keys(self):
-        self._keys.clear()
-        keys = (await RequestsService.get_jwks()).keys
-        for key in keys:
-            self._keys[key.kid] = key
+        async with self._lock:
+            keys_dict = {}
+            keys_list = (await RequestsService.get_jwks()).keys
+            for key in keys_list:
+                keys_dict[key.kid] = key
+            self._keys = keys_dict
+            self._prev_update_time = datetime.now()
 
     async def verify_token(self, token: str) -> JwtPayload:
         try:
