@@ -45,7 +45,7 @@ class JWKSManagerClass:
             key = await self.get_key(kid)
             if not key:
                 raise JWTError("Public key not found in JWKS")
-            return JwtPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], issuer=settings.auth_base_url, options={'verify_iss': True, 'verify_exp': True, "verify_signature": True}))
+            return JwtPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], issuer=settings.jwt_issuer, options={'verify_iss': True, 'verify_exp': True, "verify_signature": True}))
         except JWTError:
             raise
         except Exception as e:
