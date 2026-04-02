@@ -13,7 +13,7 @@ class JWKSManagerClass:
     _ttl = timedelta(seconds=settings.jwks_ttl)
 
     def __init__(self):
-        self._prev_update_time: datetime = datetime(0, 0, 0, 0)
+        self._prev_update_time: datetime = datetime.now()
         self._keys: dict[str, Jwk] = {}
         self._lock = asyncio.Lock()
         self.update_keys()
