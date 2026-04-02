@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from pydantic_settings.sources.providers import aws
 
+from sesc_auth_sdk.enums.permission import Permission
 from sesc_auth_sdk.enums.role import Role
 from sesc_auth_sdk.schemas.jwt import JwtPayload
 from sesc_auth_sdk.schemas.user import UserSchema
@@ -15,7 +16,8 @@ from sesc_auth_sdk.services.requests_service import RequestsService
 security_bearer = HTTPBearer(auto_error=False)
 
 class LyceumAuth:
-    def __init__(self, allowed_roles: Optional[list[Role]] = None):
+    def __init__(self, allowed_roles: Optional[list[Role]] = None, required_permissions: Optional[list[Permission]] = None):
+        self.required_permissions = required_permissions
         self.allowed_roles = allowed_roles
 
     @staticmethod
@@ -43,6 +45,11 @@ class LyceumAuth:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"User role '{token_payload.role}' is not allowed. Allowed: {self.allowed_roles}"
             )
+        if self.required_permissions and not all(permission in self.required_permissions for permission in token_payload.permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f'Some required permissions are missing. User permissions: {token_payload.permissions}, required permissions: {self.required_permissions}.'
+            )
         return token_payload
 
     async def return_user(self, token: str = Depends(_get_token), token_payload: JwtPayload = Depends(verify_authorized)) -> UserSchema:
@@ -52,4 +59,3 @@ class LyceumAuth:
     @staticmethod
     async def get_current_user(token: str = Depends(_get_token), _ = Depends(verify_authorized)) -> UserSchema:
         return await RequestsService.get_me(token)
-
