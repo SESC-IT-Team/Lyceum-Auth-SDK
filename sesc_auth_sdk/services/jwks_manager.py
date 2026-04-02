@@ -7,6 +7,7 @@ from jose import JWTError
 from sesc_auth_sdk.config import settings
 from sesc_auth_sdk.schemas.jwk import Jwk
 from sesc_auth_sdk.schemas.jwt import JwtHeaders, JwtPayload
+from sesc_auth_sdk.schemas.user import JwtUserSchema
 from sesc_auth_sdk.services.requests_service import RequestsService
 
 class JWKSManagerClass:
@@ -36,7 +37,7 @@ class JWKSManagerClass:
             self._keys = keys_dict
             self._prev_update_time = datetime.now()
 
-    async def verify_token(self, token: str) -> JwtPayload:
+    async def verify_token(self, token: str) -> JwtUserSchema:
         try:
             unverified_headers = JwtHeaders(**jwt.get_unverified_header(token))
             kid = unverified_headers.kid
@@ -45,7 +46,7 @@ class JWKSManagerClass:
             key = await self.get_key(kid)
             if not key:
                 raise JWTError("Public key not found in JWKS")
-            return JwtPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], issuer=settings.jwt_issuer, options={'verify_iss': True, 'verify_exp': True, "verify_signature": True}))
+            return JwtUserSchema.from_jwt_payload(JwtPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], issuer=settings.jwt_issuer, options={'verify_iss': True, 'verify_exp': True, "verify_signature": True})))
         except JWTError:
             raise
         except Exception as e:

@@ -8,8 +8,7 @@ from pydantic_settings.sources.providers import aws
 
 from sesc_auth_sdk.enums.permission import Permission
 from sesc_auth_sdk.enums.role import Role
-from sesc_auth_sdk.schemas.jwt import JwtPayload
-from sesc_auth_sdk.schemas.user import UserSchema
+from sesc_auth_sdk.schemas.user import UserSchema, JwtUserSchema
 from sesc_auth_sdk.services.jwks_manager import jwks_manager
 from sesc_auth_sdk.services.requests_service import RequestsService
 
@@ -30,7 +29,7 @@ class LyceumAuth:
         return request.cookies.get("access_token")
 
     @staticmethod
-    async def verify_authorized(token: str | None = Depends(_get_token)) -> JwtPayload:
+    async def verify_authorized(token: str | None = Depends(_get_token)) -> JwtUserSchema:
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
@@ -39,20 +38,20 @@ class LyceumAuth:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
 
-    async def __call__(self, token_payload: JwtPayload = Depends(verify_authorized)) -> JwtPayload:
-        if self.allowed_roles and token_payload.role not in self.allowed_roles:
+    async def __call__(self, jwt_user: JwtUserSchema = Depends(verify_authorized)) -> JwtUserSchema:
+        if self.allowed_roles and jwt_user.role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User role '{token_payload.role}' is not allowed. Allowed: {self.allowed_roles}"
+                detail=f"User role '{jwt_user.role}' is not allowed. Allowed: {self.allowed_roles}"
             )
-        if self.required_permissions and not all(permission in self.required_permissions for permission in token_payload.permissions):
+        if self.required_permissions and not all(permission in self.required_permissions for permission in jwt_user.permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f'Some required permissions are missing. User permissions: {token_payload.permissions}, required permissions: {self.required_permissions}.'
+                detail=f'Some required permissions are missing. User permissions: {jwt_user.permissions}, required permissions: {self.required_permissions}.'
             )
-        return token_payload
+        return jwt_user
 
-    async def return_user(self, token: str = Depends(_get_token), token_payload: JwtPayload = Depends(verify_authorized)) -> UserSchema:
+    async def return_user(self, token: str = Depends(_get_token), token_payload: JwtUserSchema = Depends(verify_authorized)) -> UserSchema:
         await self(token_payload)
         return await RequestsService.get_me(token)
 

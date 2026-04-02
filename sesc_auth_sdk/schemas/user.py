@@ -4,7 +4,9 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from sesc_auth_sdk.enums.gender import Gender
+from sesc_auth_sdk.enums.permission import Permission
 from sesc_auth_sdk.enums.role import Role
+from sesc_auth_sdk.schemas.jwt import JwtPayload
 
 
 class UserSchema(BaseModel):
@@ -19,3 +21,12 @@ class UserSchema(BaseModel):
     login: str
     created_at: datetime
     updated_at: datetime
+
+class JwtUserSchema(BaseModel):
+    id: UUID
+    role: Role
+    permissions: list[Permission]
+
+    @staticmethod
+    def from_jwt_payload(payload: JwtPayload):
+        return JwtUserSchema(id=payload.sub, role=payload.role, permissions=payload.permissions)

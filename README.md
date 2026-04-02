@@ -28,12 +28,12 @@
   ```python
 from fastapi import FastAPI, Depends
 from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.jwt import JwtPayload
+from sesc_auth_sdk.schemas.user import JwtUserSchema
   
 app = FastAPI()
 
 @app.get("/")
-def index(payload: JwtPayload = Depends(LyceumAuth())):
+def index(payload: JwtUserSchema = Depends(LyceumAuth())):
     ...
   ```
   Если пользователь неавторизован или если токен невалиден, сервис ответит с кодом 401.  
@@ -41,13 +41,13 @@ def index(payload: JwtPayload = Depends(LyceumAuth())):
   ```python
 from fastapi import FastAPI, Depends
 from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.jwt import JwtPayload
+from sesc_auth_sdk.schemas.user import JwtUserSchema
 from sesc_auth_sdk.enums.role import Role
    
 app = FastAPI()
   
 @app.get("/")
-def index(payload: JwtPayload = Depends(LyceumAuth(allowed_roles=[Role.admin]))):
+def index(payload: JwtUserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]))):
     ...
   ```
 Теперь если у пользователя неподходящая роль, то сервер ответит с кодом 403.  
