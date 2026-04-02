@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 from _testcapi import awaitType
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError
 from pydantic_settings.sources.providers import aws
 
 from sesc_auth_sdk.enums.role import Role
@@ -30,7 +31,10 @@ class LyceumAuth:
     async def verify_authorized(token: str | None = Depends(_get_token)) -> JwtPayload:
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-        return await jwks_manager.verify_token(token)
+        try:
+            return await jwks_manager.verify_token(token)
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
 
     async def __call__(self, token_payload: JwtPayload = Depends(verify_authorized)) -> JwtPayload:
