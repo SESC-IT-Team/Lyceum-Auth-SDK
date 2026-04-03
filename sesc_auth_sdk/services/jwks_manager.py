@@ -16,7 +16,6 @@ class JWKSManagerClass:
     def __init__(self):
         self._prev_update_time: datetime = datetime.now()
         self._keys: dict[str, Jwk] = {}
-        self._lock = asyncio.Lock()
         self.update_keys()
 
     async def get_key(self, kid: str):
@@ -29,13 +28,12 @@ class JWKSManagerClass:
             return self._keys.get(kid)
 
     async def update_keys(self):
-        async with self._lock:
-            keys_dict = {}
-            keys_list = (await RequestsService.get_jwks()).keys
-            for key in keys_list:
-                keys_dict[key.kid] = key
-            self._keys = keys_dict
-            self._prev_update_time = datetime.now()
+        keys_dict = {}
+        keys_list = (await RequestsService.get_jwks()).keys
+        for key in keys_list:
+            keys_dict[key.kid] = key
+        self._keys = keys_dict
+        self._prev_update_time = datetime.now()
 
     async def verify_token(self, token: str) -> JwtUserSchema:
         try:

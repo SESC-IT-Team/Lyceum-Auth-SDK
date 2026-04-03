@@ -15,9 +15,9 @@ from sesc_auth_sdk.services.requests_service import RequestsService
 security_bearer = HTTPBearer(auto_error=False)
 
 class LyceumAuth:
-    def __init__(self, allowed_roles: Optional[list[Role]] = None, required_permissions: Optional[list[Permission]] = None):
-        self.required_permissions = required_permissions
-        self.allowed_roles = allowed_roles
+    def __init__(self, allowed_roles: Optional[list[Role]] = None):
+        self._required_permissions = None
+        self._allowed_roles = allowed_roles
 
     @staticmethod
     async def _get_token(
@@ -39,15 +39,15 @@ class LyceumAuth:
 
 
     async def __call__(self, jwt_user: JwtUserSchema = Depends(verify_authorized)) -> JwtUserSchema:
-        if self.allowed_roles and jwt_user.role not in self.allowed_roles:
+        if self._allowed_roles and jwt_user.role not in self._allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User role '{jwt_user.role}' is not allowed. Allowed: {self.allowed_roles}"
+                detail=f"User role '{jwt_user.role}' is not allowed. Allowed: {self._allowed_roles}"
             )
-        if self.required_permissions and not all(permission in self.required_permissions for permission in jwt_user.permissions):
+        if self._required_permissions and not all(permission in self._required_permissions for permission in jwt_user.permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f'Some required permissions are missing. User permissions: {jwt_user.permissions}, required permissions: {self.required_permissions}.'
+                detail=f'Some required permissions are missing. User permissions: {jwt_user.permissions}, required permissions: {self._required_permissions}.'
             )
         return jwt_user
 
