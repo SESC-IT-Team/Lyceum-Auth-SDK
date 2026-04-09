@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from sesc_auth_sdk.enums.department import Department
 from sesc_auth_sdk.enums.gender import Gender
 from sesc_auth_sdk.enums.permission import Permission
 from sesc_auth_sdk.enums.role import Role
@@ -19,6 +20,7 @@ class UserSchema(BaseModel):
     class_name: str | None
     graduation_year: int | None
     login: str
+    departments: list[Department] | None
     created_at: datetime
     updated_at: datetime
 
