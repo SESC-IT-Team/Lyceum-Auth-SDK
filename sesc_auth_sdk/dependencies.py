@@ -1,12 +1,9 @@
-from typing import Annotated, Optional
+from typing import Optional
 
-from _testcapi import awaitType
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
-from pydantic_settings.sources.providers import aws
 
-from sesc_auth_sdk.enums.permission import Permission
 from sesc_auth_sdk.enums.role import Role
 from sesc_auth_sdk.schemas.user import UserSchema, JwtUserSchema
 from sesc_auth_sdk.services.jwks_manager import jwks_manager
