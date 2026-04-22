@@ -12,7 +12,6 @@ class JwtPayload(BaseModel):
     role: Role
     permissions: list[Permission]
     type: Literal['access']
-    iss: str
     iat: int
     nbf: int
 
