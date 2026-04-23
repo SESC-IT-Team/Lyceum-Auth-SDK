@@ -16,7 +16,6 @@ class JwtPayload(BaseModel):
     departments: list[Department] | None
     position: Position | None = None
     type: Literal['access']
-    iss: str
     iat: int
     nbf: int
 
