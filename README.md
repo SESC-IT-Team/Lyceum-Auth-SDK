@@ -1,3 +1,5 @@
+from sesc_auth_sdk.enums.permission import Usersfrom sesc_auth_sdk.enums.permission import Authfrom sesc_auth_sdk.enums.permission import Permissions
+
 # Lyceum Auth SDK
 Пакет, упрощающий разработчикам бэкенда в **СУНЦ УрФУ** взаимодействие с сервисом авторизации.
 ## 1. Интеграция в проект
@@ -36,20 +38,22 @@ def index(payload: JwtUserSchema = Depends(LyceumAuth())):
     ...
   ```
   Если пользователь неавторизован или если токен невалиден, сервис ответит с кодом 401.  
-  Если вы хотите допустить до эндпоинта только определенные роли, то делайте так:
+  Если вы хотите допустить до эндпоинта только пользователей, имеющих определённые разрешения, то делайте так:
+
   ```python
 from fastapi import FastAPI, Depends
 from sesc_auth_sdk.dependencies import LyceumAuth
 from sesc_auth_sdk.schemas.user import JwtUserSchema
-from sesc_auth_sdk.enums.role import Role
-   
+from sesc_auth_sdk.enums.permission import Permissions
+
 app = FastAPI()
-  
+
+
 @app.get("/")
-def index(payload: JwtUserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]))):
+def index(payload: JwtUserSchema = Depends(LyceumAuth(required_permissions=[Permissions.Auth.Users.read]))):
     ...
   ```
-Теперь если у пользователя неподходящая роль, то сервер ответит с кодом 403.   
+Теперь, если у пользователя недостаёт каких-то требуемых разрешений, то сервер ответит с кодом 403.   
 В обеих реализациях выше в payload будет лежать только информация, которая хранится в JWT.  
 Если вы хотите при этом получить полную информацию о пользователе, то делайте так:
   ```python
@@ -64,4 +68,19 @@ app = FastAPI()
 def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).return_user)):
     ...
   ```
-  Разница в том, что в первом и втором случаях токен валидируется локально (в большинстве случаев без запросов к бэкенду авторизации, запросы к бэку придётся делать только для обновления ключей), в то же время в третьем случае, когда возвращается пользователь, точно нужно будет запросить у бэка авторизации данные этого пользователя.
+Разница в том, что в первом и втором случаях токен валидируется локально (в большинстве случаев без запросов к бэкенду авторизации, запросы к бэку придётся делать только для обновления ключей), в то же время в третьем случае, когда возвращается пользователь, точно нужно будет запросить у бэка авторизации данные этого пользователя.
+
+Также если действие имеет большой эффект, бывает важно посмотреть есть ли требуемые разрешения не только в токене (так как токен имеет какое-то время жизни, а в процессе жизни токен никак не меняется, даже если разрешения пользователя изменились), но и у самого пользователя, чтобы это сделать нужно дописать к зависимости ```.check_strict_and_return_user```:
+
+```python
+from fastapi import FastAPI, Depends
+from sesc_auth_sdk.dependencies import LyceumAuth
+from sesc_auth_sdk.schemas.user import UserSchema
+from sesc_auth_sdk.enums.role import Role
+   
+app = FastAPI()
+  
+@app.get("/")
+def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).return_user)):
+    ...
+  ```
