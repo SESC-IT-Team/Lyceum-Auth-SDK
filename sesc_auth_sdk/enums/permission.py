@@ -8,6 +8,15 @@ class PermissionType(str, Enum):
     auth_users_update = "auth:users:update"
     auth_users_delete = "auth:users:delete"
 
+    auth_basic_permissions_write = "auth:basic_permissions:write"
+    auth_keys_revoke = "auth:keys:revoke"
+
+    auth_master_permissions_write = "auth:master_permissions:write"
+
+    auth_super_permission_grant = "auth:super_permission:grant"
+    auth_super_permission_revoke = "auth:super_permission:revoke"
+
+
     # technical support service
     technical_support_orders_create = "technical_support:orders:create"
     technical_support_orders_set_department = "technical_support:orders:set_department"
@@ -23,6 +32,19 @@ class Permissions:
             read = PermissionType.auth_users_read
             update = PermissionType.auth_users_update
             delete = PermissionType.auth_users_delete
+
+        class BasicPermissions:
+            write = PermissionType.auth_basic_permissions_write
+
+        class Keys:
+            revoke = PermissionType.auth_keys_revoke
+
+        class MasterPermissions:
+            write = PermissionType.auth_super_permission_grant
+
+        class SuperPermission:
+            grant = PermissionType.auth_super_permission_grant
+            revoke = PermissionType.auth_super_permission_revoke
 
     class TechnicalSupport:
         class Orders:

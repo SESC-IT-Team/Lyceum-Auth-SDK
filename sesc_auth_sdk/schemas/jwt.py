@@ -3,18 +3,14 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from sesc_auth_sdk.enums.department import Department
 from sesc_auth_sdk.enums.permission import PermissionType
-from sesc_auth_sdk.enums.position import Position
-from sesc_auth_sdk.enums.role import Role
+from sesc_auth_sdk.enums.role import RoleType
 
 
 class JwtPayload(BaseModel):
     sub: UUID
-    role: Role
+    roles: list[RoleType]
     permissions: list[PermissionType]
-    departments: list[Department] | None
-    position: Position | None = None
     type: Literal['access']
     iat: int
     nbf: int

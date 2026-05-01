@@ -4,10 +4,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 
-from sesc_auth_sdk.enums.department import Department
 from sesc_auth_sdk.enums.permission import PermissionType
-from sesc_auth_sdk.enums.position import Position
-from sesc_auth_sdk.enums.role import Role
 from sesc_auth_sdk.schemas.user import UserSchema, JwtUserSchema
 from sesc_auth_sdk.services.jwks_manager import jwks_manager
 from sesc_auth_sdk.services.requests_service import RequestsService
