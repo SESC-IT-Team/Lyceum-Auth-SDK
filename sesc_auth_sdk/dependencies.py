@@ -1,9 +1,8 @@
-from typing import Optional
-
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 
+from sesc_auth_sdk.config import settings
 from sesc_auth_sdk.enums.permission import PermissionType
 from sesc_auth_sdk.schemas.user import UserSchema, JwtUserSchema
 from sesc_auth_sdk.services.jwks_manager import jwks_manager
@@ -29,6 +28,8 @@ class LyceumAuth:
 
     @staticmethod
     async def verify_authorized(token: str | None = Depends(_get_token)) -> JwtUserSchema:
+        if settings.use_statics:
+            return settings.static_jwt_user
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
@@ -38,7 +39,7 @@ class LyceumAuth:
 
     async def __call__(self, jwt_user: JwtUserSchema = Depends(verify_authorized)) -> JwtUserSchema:
         if self._required_permissions and not all(
-                permission in self._required_permissions for permission in jwt_user.permissions):
+                permission in jwt_user.permissions for permission in self._required_permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f'Some required permissions are missing. User permissions: {jwt_user.permissions}, required permissions: {self._required_permissions}.'
@@ -49,6 +50,8 @@ class LyceumAuth:
                           token_payload: JwtUserSchema = Depends(verify_authorized)) -> UserSchema:
         """makes dependency return full user information"""
         await self(token_payload)
+        if settings.use_statics:
+            return settings.static_user
         return await RequestsService.get_me(token)
 
     async def check_strict_and_return_user(self, token: str = Depends(_get_token),

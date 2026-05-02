@@ -14,9 +14,8 @@ class JWKSManagerClass:
     _ttl = timedelta(seconds=settings.jwks_ttl)
 
     def __init__(self):
-        self._prev_update_time: datetime = datetime.now()
+        self._prev_update_time: datetime = datetime.now() - timedelta(seconds=settings.jwks_ttl)
         self._keys: dict[str, Jwk] = {}
-        self.update_keys()
 
     async def get_key(self, kid: str):
         if self._prev_update_time + self._ttl < datetime.now():
