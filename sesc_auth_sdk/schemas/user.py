@@ -30,4 +30,4 @@ class JwtUserSchema(BaseModel):
 
     @staticmethod
     def from_jwt_payload(payload: JwtPayload):
-        return JwtUserSchema(id=payload.sub, roles=payload.roles, permissions=payload.permissions, departments=payload.departments, position=payload.position)
+        return JwtUserSchema(id=payload.sub, roles=payload.roles, permissions=payload.permissions)
