@@ -1,5 +1,3 @@
-from sesc_auth_sdk.enums.permission import Usersfrom sesc_auth_sdk.enums.permission import Authfrom sesc_auth_sdk.enums.permission import Permissions
-
 # Lyceum Auth SDK
 Пакет, упрощающий разработчикам бэкенда в **СУНЦ УрФУ** взаимодействие с сервисом авторизации.
 ## 1. Интеграция в проект
@@ -81,6 +79,6 @@ from sesc_auth_sdk.enums.role import Role
 app = FastAPI()
   
 @app.get("/")
-def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).return_user)):
+def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).check_strict_and_return_user)):
     ...
   ```
