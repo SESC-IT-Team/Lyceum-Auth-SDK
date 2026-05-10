@@ -8,3 +8,4 @@ class Role(str, Enum):
     parent = "parent"
     staff = "staff"
     guest = "guest"
+    graduate = "graduate"

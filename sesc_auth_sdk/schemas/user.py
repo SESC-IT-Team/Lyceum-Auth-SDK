@@ -14,8 +14,11 @@ class UserSchema(BaseModel):
     last_name: str
     first_name: str
     middle_name: str | None
+    full_name: str
     roles: list[Role]
     gender: Gender
+    grade: int | None
+    letter: str | None
     class_name: str | None
     graduation_year: int | None
     login: str
