@@ -17,7 +17,7 @@ class UserSchema(BaseModel):
     full_name: str
     roles: list[Role]
     gender: Gender
-    birthday: date
+    birthday: date | None
     grade: int | None
     letter: str | None
     class_name: str | None
