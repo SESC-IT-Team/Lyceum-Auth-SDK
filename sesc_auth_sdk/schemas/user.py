@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ class UserSchema(BaseModel):
     full_name: str
     roles: list[Role]
     gender: Gender
+    birthday: date
     grade: int | None
     letter: str | None
     class_name: str | None
