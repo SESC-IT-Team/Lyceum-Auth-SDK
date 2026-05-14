@@ -10,3 +10,4 @@ class Department(Enum):
     laboratory_of_tech_teaching_aids = 'laboratory_of_tech_teaching_aids'
     competitive_selection_department = 'competitive_selection_department'
     additional_education_department = 'additional_education_department'
+    dormitory = "dormitory"
