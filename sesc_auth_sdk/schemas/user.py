@@ -1,8 +1,10 @@
 from datetime import datetime, date
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from sesc_auth_sdk.enums.departments import Department
 from sesc_auth_sdk.enums.gender import Gender
 from sesc_auth_sdk.enums.permission import PermissionType
 from sesc_auth_sdk.enums.role import Role
@@ -15,6 +17,7 @@ class UserSchema(BaseModel):
     first_name: str
     middle_name: str | None
     full_name: str
+    department: Department | None
     roles: list[Role]
     gender: Gender
     birthday: date | None
