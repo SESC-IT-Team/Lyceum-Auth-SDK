@@ -12,7 +12,7 @@ from sesc_auth_sdk.schemas.user import UserSchema
 class RequestsService:
     @staticmethod
     async def request(
-            path: str,
+            url: str,
             method: str = "GET",
             retries: int = 3,
             timeout: int = 5,
@@ -23,7 +23,7 @@ class RequestsService:
         for attempt in range(retries):
             try:
                 async with ClientSession(timeout=ClientTimeout(total=timeout)) as session:
-                    async with session.request(method, settings.auth_base_url + path, **kwargs) as response:
+                    async with session.request(method, url, **kwargs) as response:
                         if response.status != expected_status:
                             if response.status == 401:
                                 raise HTTPException(response.status)
@@ -41,7 +41,7 @@ class RequestsService:
 
     @staticmethod
     async def authorized_only_request(
-            path: str,
+            url: str,
             token: str,
             method: str = "GET",
             retries: int = 3,
@@ -51,12 +51,8 @@ class RequestsService:
             **kwargs
     ):
         kwargs.update({'headers': {'Authorization': f'Bearer {token}'}})
-        return await RequestsService.request(path, method, retries, timeout, backoff_factor, expected_status, **kwargs)
+        return await RequestsService.request(url, method, retries, timeout, backoff_factor, expected_status, **kwargs)
 
     @staticmethod
-    async def get_jwks() -> JwksResponse:
-        return JwksResponse(**(await RequestsService.request('/api/v1/auth/jwks')))
-
-    @staticmethod
-    async def get_me(token: str) -> UserSchema:
-        return UserSchema(**(await RequestsService.authorized_only_request('/api/v1/auth/me', token)))
+    async def get_jwks(iss: str) -> JwksResponse:
+        return JwksResponse(**(await RequestsService.request(iss + 'jwks/')))
