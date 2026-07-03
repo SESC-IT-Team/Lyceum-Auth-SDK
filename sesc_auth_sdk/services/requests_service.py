@@ -1,12 +1,10 @@
 import asyncio
 from fastapi import HTTPException
-from typing import Any
 
 from aiohttp import ClientSession, ClientTimeout
 
 from sesc_auth_sdk.config import settings
 from sesc_auth_sdk.schemas.jwk import JwksResponse
-from sesc_auth_sdk.schemas.user import UserSchema
 
 
 class RequestsService:
@@ -19,7 +17,7 @@ class RequestsService:
             backoff_factor: float = 0.5,
             expected_status: int = 200,
             **kwargs
-    ) -> Any:
+    ) -> any:
         for attempt in range(retries):
             try:
                 async with ClientSession(timeout=ClientTimeout(total=timeout)) as session:
@@ -29,12 +27,14 @@ class RequestsService:
                                 raise HTTPException(response.status)
                             if response.status == 403:
                                 raise HTTPException(response.status, response.reason)
+                            print(await response.json())
                             raise Exception(f"Unexpected status: {response.status}")
                         return await response.json()
             except HTTPException:
                 raise
             except Exception as e:
                 if attempt == retries - 1:
+                    print(e)
                     raise HTTPException(500, str(e))
                 delay = backoff_factor * (2 ** attempt)
                 await asyncio.sleep(delay)
@@ -55,4 +55,33 @@ class RequestsService:
 
     @staticmethod
     async def get_jwks(iss: str) -> JwksResponse:
-        return JwksResponse(**(await RequestsService.request(iss + 'jwks/')))
+        return JwksResponse(**(await RequestsService.request(iss + '/jwks/')))
+
+    @staticmethod
+    async def exchange_code(code: str, code_verifier: str):
+        return await RequestsService.request(settings.authentik_url + '/application/o/token/', method='POST', data={
+            'grant_type': 'authorization_code',
+            'code': code,
+            'code_verifier': code_verifier,
+            'client_id': settings.client_id,
+            'client_secret': settings.client_secret,
+            'redirect_uri': settings.login_redirect_uri,
+        })
+
+    @staticmethod
+    async def refresh_token(refresh_token: str):
+        return await RequestsService.request(settings.authentik_url + '/application/o/token/', method='POST', data={
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+            'client_id': settings.client_id,
+            'client_secret': settings.client_secret,
+        })
+
+    @staticmethod
+    async def revoke_refresh_token(refresh_token: str):
+        return await RequestsService.request(f"{settings.authentik_url}/application/o/revoke/", method='POST', data={
+            'client_id': settings.client_id,
+            'client_secret': settings.client_secret,
+            'token': refresh_token,
+            'token_type_hint': 'refresh_token'
+        }, headers={'Content-Type': 'application/x-www-form-urlencoded'})

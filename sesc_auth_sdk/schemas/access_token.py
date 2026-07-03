@@ -9,7 +9,6 @@ from sesc_auth_sdk.enums.scope import Scope
 
 class AccessTokenPayload(BaseModel):
     sub: UUID
-    type: Literal['access']
     iat: int
     auth_time: int
     exp: int
@@ -18,11 +17,11 @@ class AccessTokenPayload(BaseModel):
     amr: list[str]
     sid: str
     jti: str
-    name: str
-    given_name: str
-    preferred_name: str
-    nickname: str
-    groups: list[str]
+    name: str | None = None
+    given_name: str | None = None
+    preferred_name: str | None = None
+    nickname: str | None = None
+    groups: list[str] | None = None
     azp: str
     uid: str
 

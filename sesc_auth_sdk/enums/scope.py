@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Scope(Enum, str):
+class Scope(str, Enum):
     profile = 'profile'
     user = 'user'
     openid = 'openid'

@@ -7,7 +7,6 @@ from jose import JWTError
 from sesc_auth_sdk.config import settings
 from sesc_auth_sdk.schemas.jwk import Jwk
 from sesc_auth_sdk.schemas.access_token import AccessTokenHeaders, AccessTokenPayload
-from sesc_auth_sdk.schemas.user import JwtUserSchema
 from sesc_auth_sdk.services.requests_service import RequestsService
 
 class JWKSManagerClass:
@@ -19,7 +18,7 @@ class JWKSManagerClass:
 
     async def get_key(self, iss: str, kid: str) -> Jwk | None:
         if self._prev_update_time.get(iss) and self._prev_update_time[iss] + self._ttl < datetime.now():
-            await self.update_keys()
+            await self.update_keys(iss)
         try:
             return self._keys[iss][kid]
         except KeyError:
@@ -46,7 +45,7 @@ class JWKSManagerClass:
             key = await self.get_key(iss, kid)
             if not key:
                 raise JWTError("Public key not found in JWKS")
-            return AccessTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True}))
+            return AccessTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
         except JWTError:
             raise
         except Exception as e:

@@ -34,7 +34,8 @@ class LyceumAuth:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
             return await jwks_manager.verify_token(token)
-        except JWTError:
+        except JWTError as e:
+            print(e)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
     async def __call__(self, token_payload: AccessTokenPayload = Depends(verify_authorized)) -> AccessTokenPayload:
