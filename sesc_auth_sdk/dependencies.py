@@ -28,13 +28,11 @@ class LyceumAuth:
 
     @staticmethod
     async def verify_authorized(token: str | None = Depends(_get_token)) -> AccessTokenPayload:
-        if settings.use_statics:
-            return settings.static_jwt_user
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
             return await jwks_manager.verify_access_token(token)
-        except JWTError as e:
+        except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
     async def __call__(self, token_payload: AccessTokenPayload = Depends(verify_authorized)) -> AccessTokenPayload:
