@@ -1,4 +1,4 @@
-.env
+.env.auth
 .venv
 sesc_auth_sdk.egg-info
 .idea/

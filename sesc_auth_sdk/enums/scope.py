@@ -3,7 +3,6 @@ from enum import Enum
 
 class Scope(str, Enum):
     profile = 'profile'
-    user = 'user'
     openid = 'openid'
     email = 'email'
     offline_access = 'offline_access'

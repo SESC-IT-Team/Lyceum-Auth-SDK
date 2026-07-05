@@ -6,7 +6,7 @@ from jose import JWTError
 
 from sesc_auth_sdk.config import settings
 from sesc_auth_sdk.schemas.jwk import Jwk
-from sesc_auth_sdk.schemas.access_token import AccessTokenHeaders, AccessTokenPayload
+from sesc_auth_sdk.schemas.token import TokenHeaders, AccessTokenPayload, IdTokenPayload
 from sesc_auth_sdk.services.requests_service import RequestsService
 
 class JWKSManagerClass:
@@ -33,9 +33,9 @@ class JWKSManagerClass:
         self._keys[iss] = keys_dict
         self._prev_update_time[iss] = datetime.now()
 
-    async def verify_token(self, token: str) -> AccessTokenPayload:
+    async def verify_access_token(self, token: str) -> AccessTokenPayload:
         try:
-            unverified_headers = AccessTokenHeaders(**jwt.get_unverified_header(token))
+            unverified_headers = TokenHeaders(**jwt.get_unverified_header(token))
             kid = unverified_headers.kid
             if not kid:
                 raise JWTError("Field kid missed in headers of token")
@@ -46,6 +46,24 @@ class JWKSManagerClass:
             if not key:
                 raise JWTError("Public key not found in JWKS")
             return AccessTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
+        except JWTError:
+            raise
+        except Exception as e:
+            raise JWTError(f'Error occurred while verifying token: {str(e)}')
+
+    async def verify_id_token(self, token: str) -> IdTokenPayload:
+        try:
+            unverified_headers = TokenHeaders(**jwt.get_unverified_header(token))
+            kid = unverified_headers.kid
+            if not kid:
+                raise JWTError("Field kid missed in headers of token")
+            iss = jwt.decode(token, options={"verify_signature": False}).get('iss')
+            if iss not in settings.allowed_issuers:
+                raise JWTError("Token issued by untrusted issuer")
+            key = await self.get_key(iss, kid)
+            if not key:
+                raise JWTError("Public key not found in JWKS")
+            return IdTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
         except JWTError:
             raise
         except Exception as e:

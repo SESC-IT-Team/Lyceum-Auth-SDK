@@ -5,7 +5,7 @@ from jose import JWTError
 from sesc_auth_sdk.config import settings
 
 from sesc_auth_sdk.enums.scope import Scope
-from sesc_auth_sdk.schemas.access_token import AccessTokenPayload
+from sesc_auth_sdk.schemas.token import AccessTokenPayload
 from sesc_auth_sdk.services.jwks_manager import jwks_manager
 
 security_bearer = HTTPBearer(auto_error=False)
@@ -33,9 +33,8 @@ class LyceumAuth:
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
-            return await jwks_manager.verify_token(token)
+            return await jwks_manager.verify_access_token(token)
         except JWTError as e:
-            print(e)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
     async def __call__(self, token_payload: AccessTokenPayload = Depends(verify_authorized)) -> AccessTokenPayload:

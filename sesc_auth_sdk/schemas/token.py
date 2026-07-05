@@ -1,8 +1,12 @@
-from pydantic import BaseModel
+from typing import Literal
+from uuid import UUID
 
+from pydantic import BaseModel, field_validator
+
+from sesc_auth_sdk.enums.scope import Scope
 
 class TokenResponse(BaseModel):
-    access_token: str
+    access_token: str | None = None
     token_type: str
     scope: str
     expires_in: int
@@ -23,3 +27,50 @@ class TokenRequest(BaseModel):
 
 class LogoutResponse(BaseModel):
     refresh_token_revoked: bool
+
+class AccessTokenPayload(BaseModel):
+    sub: UUID
+    iat: int
+    auth_time: int
+    exp: int
+    scope: list[Scope]
+    acr: str
+    amr: list[str]
+    sid: str
+    jti: str
+    name: str | None = None
+    given_name: str | None = None
+    preferred_name: str | None = None
+    nickname: str | None = None
+    groups: list[str] | None = None
+    azp: str
+    uid: str
+    nonce: str | None = None
+
+    @field_validator("scope", mode="before")
+    @classmethod
+    def split_space_separated_string(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return v.split()
+        return v
+
+class IdTokenPayload(BaseModel):
+    sub: UUID
+    iat: int
+    auth_time: int
+    exp: int
+    acr: str
+    amr: list[str]
+    sid: str
+    jti: str
+    name: str | None = None
+    given_name: str | None = None
+    preferred_name: str | None = None
+    nickname: str | None = None
+    groups: list[str] | None = None
+    nonce: str | None = None
+
+class TokenHeaders(BaseModel):
+    kid: str
+    alg: str
+    typ: Literal['JWT']

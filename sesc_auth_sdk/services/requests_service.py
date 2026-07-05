@@ -27,14 +27,12 @@ class RequestsService:
                                 raise HTTPException(response.status)
                             if response.status == 403:
                                 raise HTTPException(response.status, response.reason)
-                            print(await response.json())
                             raise Exception(f"Unexpected status: {response.status}")
                         return await response.json()
             except HTTPException:
                 raise
             except Exception as e:
                 if attempt == retries - 1:
-                    print(e)
                     raise HTTPException(500, str(e))
                 delay = backoff_factor * (2 ** attempt)
                 await asyncio.sleep(delay)

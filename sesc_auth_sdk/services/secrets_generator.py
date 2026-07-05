@@ -13,5 +13,5 @@ class SecretsGenerator:
         )
 
     @staticmethod
-    def generate_state() -> str:
+    def generate_secret_string() -> str:
         return secrets.token_urlsafe(32)

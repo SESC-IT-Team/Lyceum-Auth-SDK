@@ -17,10 +17,15 @@ class AuthSDKConfig(BaseSettings):
     application_slug: str | None = None
     login_redirect_uri: str | None = None
 
-    cookie_domain: str = 'localhost'
+    cookie_domain: str | None = None
     cookie_secure: bool = False
     cookie_samesite: str = 'lax'
+
     refresh_token_ttl: int = 2592000 # 30 days
-    use_statics: bool = False
+    access_token_ttl: int = 300 # 5 mins
+    oauth_initial_oauth_code_flow_cookies_ttl: int = 300 # 5 mins
+
+    send_access_token_in_json_response: bool = True
+    send_access_token_as_cookie: bool = False
 
 settings = AuthSDKConfig()
