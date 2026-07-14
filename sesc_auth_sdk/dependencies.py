@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from pydantic_settings.sources.providers import aws
 
-from build.lib.sesc_auth_sdk.services.requests_service import RequestsService
+from sesc_auth_sdk.services.requests_service import RequestsService
 from sesc_auth_sdk.enums.scope import Scope
 from sesc_auth_sdk.schemas.token import AccessTokenPayload
 from sesc_auth_sdk.schemas.user import User
