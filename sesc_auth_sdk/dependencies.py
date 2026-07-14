@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from typing import Coroutine, Callable, Any
+from typing import Coroutine, Callable, Any, ClassVar
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -12,14 +12,16 @@ from sesc_auth_sdk.services.jwks_manager import JWKSManager
 security_bearer = HTTPBearer(auto_error=False)
 
 
-def create_simple_dependency[T](jwks_manager: T) -> Callable[[],Coroutine[Any, Any, T]]:
-    async def _get_obj() -> T:
+def create_jwks_manager_dependency(jwks_manager: JWKSManager) -> Callable[[],Coroutine[Any, Any, JWKSManager]]:
+    async def _get_jwks() -> JWKSManager:
         return jwks_manager
-    return _get_obj
+    return _get_jwks
 
 class LyceumAuth(ABC):
-
     """fastapi dependency, that allows only authorized users that have required permissions to endpoint"""
+
+
+    get_current_user_uri: ClassVar[str]
 
     @staticmethod
     @abstractmethod
@@ -55,3 +57,9 @@ class LyceumAuth(ABC):
                 detail=f'Some required scopes are missing. User permissions: {token_payload.scope}, required permissions: {self._required_scopes}.'
             )
         return token_payload
+
+    @staticmethod
+    def get_current_user():
+
+    async def return_user(self):
+
