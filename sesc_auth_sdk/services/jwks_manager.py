@@ -1,23 +1,25 @@
-import asyncio
 from datetime import datetime, timedelta
 
 import jwt
 from jose import JWTError
 
-from sesc_auth_sdk.config import settings
+from sesc_auth_sdk.settings import TokenValidationSettings
 from sesc_auth_sdk.schemas.jwk import Jwk
 from sesc_auth_sdk.schemas.token import TokenHeaders, AccessTokenPayload, IdTokenPayload
 from sesc_auth_sdk.services.requests_service import RequestsService
 
-class JWKSManagerClass:
-    _ttl = timedelta(seconds=settings.jwks_ttl)
-
-    def __init__(self):
+class JWKSManager:
+    def __init__(self, settings: TokenValidationSettings):
         self._prev_update_time: dict[str, datetime] = {}
         self._keys: dict[str, dict[str, Jwk]] = {}
+        self._settings = settings
+
+    @property
+    def _jwks_ttl(self) -> timedelta:
+        return timedelta(seconds=self._settings.jwks_ttl)
 
     async def get_key(self, iss: str, kid: str) -> Jwk | None:
-        if self._prev_update_time.get(iss) and self._prev_update_time[iss] + self._ttl < datetime.now():
+        if self._prev_update_time.get(iss) and self._prev_update_time[iss] + self._jwks_ttl < datetime.now():
             await self.update_keys(iss)
         try:
             return self._keys[iss][kid]
@@ -33,40 +35,26 @@ class JWKSManagerClass:
         self._keys[iss] = keys_dict
         self._prev_update_time[iss] = datetime.now()
 
-    async def verify_access_token(self, token: str) -> AccessTokenPayload:
+    async def _verify_token[T: AccessTokenPayload | IdTokenPayload](self, payload_type: type[T], token: str) -> T:
         try:
             unverified_headers = TokenHeaders(**jwt.get_unverified_header(token))
             kid = unverified_headers.kid
             if not kid:
                 raise JWTError("Field kid missed in headers of token")
-            iss = jwt.decode(token, options={"verify_signature": False}).get('iss')
-            if iss not in settings.allowed_issuers:
+            iss: str = payload_type(**jwt.decode(token, options={"verify_signature": False})).iss
+            if iss not in self._settings.allowed_issuers:
                 raise JWTError("Token issued by untrusted issuer")
             key = await self.get_key(iss, kid)
             if not key:
                 raise JWTError("Public key not found in JWKS")
-            return AccessTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
+            return payload_type(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
         except JWTError:
             raise
         except Exception as e:
             raise JWTError(f'Error occurred while verifying token: {str(e)}')
+
+    async def verify_access_token(self, token: str) -> AccessTokenPayload:
+        return await self._verify_token(AccessTokenPayload, token)
 
     async def verify_id_token(self, token: str) -> IdTokenPayload:
-        try:
-            unverified_headers = TokenHeaders(**jwt.get_unverified_header(token))
-            kid = unverified_headers.kid
-            if not kid:
-                raise JWTError("Field kid missed in headers of token")
-            iss = jwt.decode(token, options={"verify_signature": False}).get('iss')
-            if iss not in settings.allowed_issuers:
-                raise JWTError("Token issued by untrusted issuer")
-            key = await self.get_key(iss, kid)
-            if not key:
-                raise JWTError("Public key not found in JWKS")
-            return IdTokenPayload(**jwt.decode(token, jwt.PyJWK(key.model_dump()), algorithms=["RS256"], options={'verify_exp': True, "verify_signature": True, 'verify_aud': False}))
-        except JWTError:
-            raise
-        except Exception as e:
-            raise JWTError(f'Error occurred while verifying token: {str(e)}')
-
-jwks_manager = JWKSManagerClass()
+        return await self._verify_token(IdTokenPayload, token)

@@ -1,18 +1,30 @@
+from abc import abstractmethod, ABC
+from typing import Coroutine, Callable, Any
+
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 
-from sesc_auth_sdk.config import settings
-
 from sesc_auth_sdk.enums.scope import Scope
 from sesc_auth_sdk.schemas.token import AccessTokenPayload
-from sesc_auth_sdk.services.jwks_manager import jwks_manager
+from sesc_auth_sdk.services.jwks_manager import JWKSManager
 
 security_bearer = HTTPBearer(auto_error=False)
 
 
-class LyceumAuth:
-    '''fastapi dependency, that allows only authorized users that have required permissions to endpoint'''
+def create_simple_dependency[T](jwks_manager: T) -> Callable[[],Coroutine[Any, Any, T]]:
+    async def _get_obj() -> T:
+        return jwks_manager
+    return _get_obj
+
+class LyceumAuth(ABC):
+
+    """fastapi dependency, that allows only authorized users that have required permissions to endpoint"""
+
+    @staticmethod
+    @abstractmethod
+    async def _get_jwks_manager() -> JWKSManager:
+        ...
 
     def __init__(self, required_scopes: list[Scope] | None = None):
         self._required_scopes = required_scopes
@@ -27,7 +39,7 @@ class LyceumAuth:
         return request.cookies.get("access_token")
 
     @staticmethod
-    async def verify_authorized(token: str | None = Depends(_get_token)) -> AccessTokenPayload:
+    async def verify_authorized(token: str | None = Depends(_get_token), jwks_manager: JWKSManager = Depends(_get_jwks_manager)) -> AccessTokenPayload:
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:

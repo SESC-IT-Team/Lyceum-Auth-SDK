@@ -20,23 +20,19 @@ class AuthentikTokenResponse(BaseModel):
     id_token: str
     refresh_token: str | None = None
 
-class TokenRequest(BaseModel):
-    grant_type: str
-    code: str | None = None
-    state: str | None = None
-
 class LogoutResponse(BaseModel):
     refresh_token_revoked: bool
 
 class AccessTokenPayload(BaseModel):
+    iss: str
     sub: UUID
     iat: int
     auth_time: int
     exp: int
     scope: list[Scope]
     acr: str
-    amr: list[str]
-    sid: str
+    amr: list[str] | None = None
+    sid: str | None = None
     jti: str
     name: str | None = None
     given_name: str | None = None
@@ -56,6 +52,7 @@ class AccessTokenPayload(BaseModel):
 
 class IdTokenPayload(BaseModel):
     sub: UUID
+    iss: str
     iat: int
     auth_time: int
     exp: int
