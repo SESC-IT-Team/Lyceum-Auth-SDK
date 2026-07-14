@@ -2,7 +2,7 @@
 Пакет, упрощающий разработчикам бэкенда в **СУНЦ УрФУ** взаимодействие с сервисом авторизации.
 ## 1. Интеграция в проект
   - ### Установка пакета в проект  
-    Сначала в pyproject.toml добавить:
+    Сначала в ```pyproject.toml``` добавить:
     ```toml
     [tool.uv.workspace]
     members = ["packages/other-package"]
@@ -10,75 +10,42 @@
     [tool.uv.sources]
     sesc-auth-sdk = { git = "https://github.com/SESC-IT-Team/Lyceum-Auth-SDK.git" }
     ```
-    Теперь пакет можно добавить в uv как обычный пакет с PyPI или другого источника, просто написав команду в консоль:  
+    Теперь пакет можно добавить в ```uv``` как обычный пакет с ```PyPI``` или другого источника, просто написав команду в консоль:  
     ```bash
     uv add sesc-auth-sdk
     ```
-  - ### Конфигурация .env
-    В вашем проекте должен быть .env файл со следующими переменными:
-    ```dotenv
-    AUTH_BASE_URL=<URL сервиса авторизации>
-    ```
-    .env.example — пример .env файла.  
-      
-    _Примечание: в .env файле могут быть и другие переменные нужные в Вашем проекте._
+  - ### Конфигурация ```.env.auth```
+    В вашем проекте должен быть ```.env``` файл с переменными, описанными в ```.env.example```  
+    _Примечание: в ```.env``` файле могут быть и другие переменные нужные в Вашем проекте._
 ## 2. Использование
-  Пусть у вас есть эндпоинт / и вы хотите, чтобы он был доступен только авторизованным пользователям, то делайте так:
+  Пусть у вас есть эндпоинт ```/``` и вы хотите, чтобы он был доступен только авторизованным пользователям, то делайте так:
   ```python
 from fastapi import FastAPI, Depends
 from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.user import JwtUserSchema
+from sesc_auth_sdk.schemas.token import AccessTokenPayload
   
 app = FastAPI()
 
 @app.get("/")
-def index(payload: JwtUserSchema = Depends(LyceumAuth())):
+def index(payload: AccessTokenPayload = Depends(LyceumAuth())):
     ...
   ```
-  Если пользователь неавторизован или если токен невалиден, сервис ответит с кодом 401.  
-  Если вы хотите допустить до эндпоинта только пользователей, имеющих определённые разрешения, то делайте так:
+  Если пользователь неавторизован или если токен невалиден, сервис ответит с кодом ```401 Unauthorized```.  
+  Если вы хотите допустить до эндпоинта только токены, имеющие определённые ```scopes```, то делайте так:
 
   ```python
 from fastapi import FastAPI, Depends
 from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.user import JwtUserSchema
-from sesc_auth_sdk.enums.permission import Permissions
+from sesc_auth_sdk.schemas.token import AccessTokenPayload
+from sesc_auth_sdk.enums.scope import Scope
 
 app = FastAPI()
 
 
 @app.get("/")
-def index(payload: JwtUserSchema = Depends(LyceumAuth(required_permissions=[Permissions.Auth.Users.read]))):
+def index(payload: AccessTokenPayload = Depends(LyceumAuth(required_scopes=[Scope.profile]))):
     ...
   ```
-Теперь, если у пользователя недостаёт каких-то требуемых разрешений, то сервер ответит с кодом 403.   
-В обеих реализациях выше в payload будет лежать только информация, которая хранится в JWT.  
-Если вы хотите при этом получить полную информацию о пользователе, то делайте так:
-  ```python
-from fastapi import FastAPI, Depends
-from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.user import UserSchema
-from sesc_auth_sdk.enums.role import Role
-   
-app = FastAPI()
-  
-@app.get("/")
-def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).return_user)):
-    ...
-  ```
-Разница в том, что в первом и втором случаях токен валидируется локально (в большинстве случаев без запросов к бэкенду авторизации, запросы к бэку придётся делать только для обновления ключей), в то же время в третьем случае, когда возвращается пользователь, точно нужно будет запросить у бэка авторизации данные этого пользователя.
-
-Также если действие имеет большой эффект, бывает важно посмотреть есть ли требуемые разрешения не только в токене (так как токен имеет какое-то время жизни, а в процессе жизни токен никак не меняется, даже если разрешения пользователя изменились), но и у самого пользователя, чтобы это сделать нужно дописать к зависимости ```.check_strict_and_return_user```:
-
-```python
-from fastapi import FastAPI, Depends
-from sesc_auth_sdk.dependencies import LyceumAuth
-from sesc_auth_sdk.schemas.user import UserSchema
-from sesc_auth_sdk.enums.role import Role
-   
-app = FastAPI()
-  
-@app.get("/")
-def index(user: UserSchema = Depends(LyceumAuth(allowed_roles=[Role.admin]).check_strict_and_return_user)):
-    ...
-  ```
+  Теперь, если в токене недостаёт каких-то требуемых scope'ов, то сервер ответит с кодом ```403 Forbidden```.  
+  Если вашему приложению нужна авторизацию пользователя (это не просто ```API``` нужное для других приложений, а полноценное приложение), 
+  вы должны использовать встроенный в ```SDK``` ```auth_router``` описанный в ```sesc_auth_sdk.auth_rouer```. Не забудьте добавить ```.env.auth``` переменные, требуемые для его работы.

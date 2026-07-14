@@ -1,21 +1,38 @@
+from abc import abstractmethod, ABC
+from typing import Coroutine, Callable, Any, ClassVar
+
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
+from pydantic_settings.sources.providers import aws
 
-from sesc_auth_sdk.config import settings
-from sesc_auth_sdk.enums.permission import PermissionType
-from sesc_auth_sdk.schemas.user import UserSchema, JwtUserSchema
-from sesc_auth_sdk.services.jwks_manager import jwks_manager
-from sesc_auth_sdk.services.requests_service import RequestsService
+from build.lib.sesc_auth_sdk.services.requests_service import RequestsService
+from sesc_auth_sdk.enums.scope import Scope
+from sesc_auth_sdk.schemas.token import AccessTokenPayload
+from sesc_auth_sdk.schemas.user import User
+from sesc_auth_sdk.services.jwks_manager import JWKSManager
 
 security_bearer = HTTPBearer(auto_error=False)
 
 
-class LyceumAuth:
-    '''fastapi dependency, that allows only authorized users that have required permissions to endpoint'''
+def create_jwks_manager_dependency(jwks_manager: JWKSManager) -> Callable[[],Coroutine[Any, Any, JWKSManager]]:
+    async def _get_jwks() -> JWKSManager:
+        return jwks_manager
+    return _get_jwks
 
-    def __init__(self, required_permissions: list[PermissionType] | None = None):
-        self._required_permissions = required_permissions
+class LyceumAuth(ABC):
+    """fastapi dependency, that allows only authorized users that have required permissions to endpoint"""
+
+
+    user_service_url: ClassVar[str]
+
+    @staticmethod
+    @abstractmethod
+    async def _get_jwks_manager() -> JWKSManager:
+        ...
+
+    def __init__(self, required_scopes: list[Scope] | None = None):
+        self._required_scopes = required_scopes
 
     @staticmethod
     async def _get_token(
@@ -27,41 +44,31 @@ class LyceumAuth:
         return request.cookies.get("access_token")
 
     @staticmethod
-    async def verify_authorized(token: str | None = Depends(_get_token)) -> JwtUserSchema:
-        if settings.use_statics:
-            return settings.static_jwt_user
+    async def verify_authorized(token: str | None = Depends(_get_token), jwks_manager: JWKSManager = Depends(_get_jwks_manager)) -> AccessTokenPayload:
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
-            return await jwks_manager.verify_token(token)
+            return await jwks_manager.verify_access_token(token)
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
-    async def __call__(self, jwt_user: JwtUserSchema = Depends(verify_authorized)) -> JwtUserSchema:
-        if self._required_permissions and not all(
-                permission in jwt_user.permissions for permission in self._required_permissions):
+    async def __call__(self, token_payload: AccessTokenPayload = Depends(verify_authorized)) -> AccessTokenPayload:
+        if self._required_scopes and not all(
+                scope in token_payload.scope for scope in self._required_scopes):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f'Some required permissions are missing. User permissions: {jwt_user.permissions}, required permissions: {self._required_permissions}.'
+                detail=f'Some required scopes are missing. User permissions: {token_payload.scope}, required permissions: {self._required_scopes}.'
             )
-        return jwt_user
+        return token_payload
 
-    async def return_user(self, token: str = Depends(_get_token),
-                          token_payload: JwtUserSchema = Depends(verify_authorized)) -> UserSchema:
-        """makes dependency return full user information"""
+    @classmethod
+    async def get_current_user(cls, token: str):
+        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/me', token)))
+
+    async def return_user(self, token_payload: AccessTokenPayload = Depends(verify_authorized), token: str = Depends(_get_token)):
         await self(token_payload)
-        if settings.use_statics:
-            return settings.static_user
-        return await RequestsService.get_me(token)
+        return await self.get_current_user(token)
 
-    async def check_strict_and_return_user(self, token: str = Depends(_get_token),
-                                           token_payload: JwtUserSchema = Depends(verify_authorized)) -> UserSchema:
-        """additionally check that the user object has required permissions and makes dependency return full user information"""
-        user = await self.return_user(token, token_payload)
-        if self._required_permissions and not all(
-                permission in self._required_permissions for permission in user.permissions):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f'Some required permissions are missing. User permissions: {user.permissions}, required permissions: {self._required_permissions}.'
-            )
-        return user
+
+
+

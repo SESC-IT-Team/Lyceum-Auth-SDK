@@ -1,23 +1,19 @@
 from datetime import datetime, date
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from sesc_auth_sdk.enums.departments import Department
 from sesc_auth_sdk.enums.gender import Gender
-from sesc_auth_sdk.enums.permission import PermissionType
 from sesc_auth_sdk.enums.role import Role
-from sesc_auth_sdk.schemas.jwt import JwtPayload
 
 
-class UserSchema(BaseModel):
+class User(BaseModel):
     id: UUID
     last_name: str
     first_name: str
     middle_name: str | None
     full_name: str
-    department: Department | None
+    gender: Gender
     roles: list[Role]
     gender: Gender
     birthday: date | None
@@ -26,15 +22,5 @@ class UserSchema(BaseModel):
     class_name: str | None
     graduation_year: int | None
     login: str
-    permissions: list[PermissionType]
-    created_at: datetime
-    updated_at: datetime
-
-class JwtUserSchema(BaseModel):
-    id: UUID
-    roles: list[Role]
-    permissions: list[PermissionType]
-
-    @staticmethod
-    def from_jwt_payload(payload: JwtPayload):
-        return JwtUserSchema(id=payload.sub, roles=payload.roles, permissions=payload.permissions)
+    created_at: datetime | None
+    updated_at: datetime | None

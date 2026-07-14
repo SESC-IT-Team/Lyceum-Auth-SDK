@@ -9,5 +9,6 @@ class Jwk(BaseModel):
     n: str
     e: str
 
+
 class JwksResponse(BaseModel):
     keys: list[Jwk]
