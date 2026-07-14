@@ -7,7 +7,7 @@ from sesc_auth_sdk.enums.gender import Gender
 from sesc_auth_sdk.enums.role import Role
 
 
-class UserResponse(BaseModel):
+class User(BaseModel):
     id: UUID
     last_name: str
     first_name: str

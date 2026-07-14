@@ -4,9 +4,12 @@ from typing import Coroutine, Callable, Any, ClassVar
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
+from pydantic_settings.sources.providers import aws
 
+from build.lib.sesc_auth_sdk.services.requests_service import RequestsService
 from sesc_auth_sdk.enums.scope import Scope
 from sesc_auth_sdk.schemas.token import AccessTokenPayload
+from sesc_auth_sdk.schemas.user import User
 from sesc_auth_sdk.services.jwks_manager import JWKSManager
 
 security_bearer = HTTPBearer(auto_error=False)
@@ -21,7 +24,7 @@ class LyceumAuth(ABC):
     """fastapi dependency, that allows only authorized users that have required permissions to endpoint"""
 
 
-    get_current_user_uri: ClassVar[str]
+    user_service_url: ClassVar[str]
 
     @staticmethod
     @abstractmethod
@@ -58,8 +61,14 @@ class LyceumAuth(ABC):
             )
         return token_payload
 
-    @staticmethod
-    def get_current_user():
+    @classmethod
+    async def get_current_user(cls, token: str):
+        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/me', token)))
 
-    async def return_user(self):
+    async def return_user(self, token_payload: AccessTokenPayload = Depends(verify_authorized), token: str = Depends(_get_token)):
+        await self(token_payload)
+        return await self.get_current_user(token)
+
+
+
 
