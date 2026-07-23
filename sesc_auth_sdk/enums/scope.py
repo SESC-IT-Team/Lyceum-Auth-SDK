@@ -13,3 +13,9 @@ class Scope(str, Enum):
     auth_users_read = 'auth:users:read'
     auth_users_update = 'auth:users:update'
     auth_users_delete = 'auth:users:delete'
+
+    technical_support_orders_create = 'technical_support:orders:create'
+    technical_support_orders_set_department = 'technical_support:orders:set_department'
+    technical_support_orders_get = 'technical_support:orders:get'
+    technical_support_orders_set_status = 'technical_support:orders:set_status'
+    technical_support_orders_set_worker = 'technical_support:orders:set_worker'
