@@ -5,6 +5,10 @@ from pydantic import BaseModel, field_validator
 
 from sesc_auth_sdk.enums.scope import Scope
 
+class ExchangeCodeRequest(BaseModel):
+    code: str
+    state: str
+
 class TokenResponse(BaseModel):
     access_token: str | None = None
     token_type: str

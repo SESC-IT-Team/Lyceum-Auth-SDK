@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, Request, HTTPException, status
 
 from sesc_auth_sdk.settings.auth_router_settings import AuthRouterSettings
-from sesc_auth_sdk.schemas.token import TokenResponse, AuthentikTokenResponse, LogoutResponse
+from sesc_auth_sdk.schemas.token import TokenResponse, AuthentikTokenResponse, LogoutResponse, ExchangeCodeRequest
 from sesc_auth_sdk.schemas.authorization_url_response import AuthorizationUrlResponse
 from sesc_auth_sdk.services.jwks_manager import JWKSManager
 
@@ -97,7 +97,9 @@ def create_auth_router(settings: AuthRouterSettings, prefix: str = '/auth') -> A
         return AuthorizationUrlResponse(authorization_url=url)
 
     @router.post("/exchange_code", response_model_exclude_unset=True)
-    async def exchange_code(code: str, state: str, request: Request, response: Response) -> TokenResponse:
+    async def exchange_code(body: ExchangeCodeRequest, request: Request, response: Response) -> TokenResponse:
+        code = body.code
+        state = body.state
         cookie_state = request.cookies.get('oauth_state')
         cookie_code_verifier = request.cookies.get('oauth_code_verifier')
         cookie_nonce = request.cookies.get('oauth_nonce')
