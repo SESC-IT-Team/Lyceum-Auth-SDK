@@ -43,8 +43,9 @@ class LyceumAuth(ABC):
             return credentials.credentials
         return request.cookies.get("access_token")
 
-    @staticmethod
-    async def verify_authorized(token: str | None = Depends(_get_token), jwks_manager: JWKSManager = Depends(_get_jwks_manager)) -> AccessTokenPayload:
+    @classmethod
+    async def verify_authorized(cls, token: str | None = Depends(_get_token)) -> AccessTokenPayload:
+        jwks_manager = await cls._get_jwks_manager()
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
@@ -52,7 +53,8 @@ class LyceumAuth(ABC):
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
-    async def __call__(self, token_payload: AccessTokenPayload = Depends(verify_authorized)) -> AccessTokenPayload:
+    async def __call__(self, token: str = Depends(_get_token)) -> AccessTokenPayload:
+        token_payload: AccessTokenPayload = await self.verify_authorized(token)
         if self._required_scopes and not all(
                 scope in token_payload.scope for scope in self._required_scopes):
             raise HTTPException(
@@ -65,8 +67,8 @@ class LyceumAuth(ABC):
     async def get_current_user(cls, token: str):
         return User(**(await RequestsService.authorized_request(cls.user_service_url + '/me', token)))
 
-    async def return_user(self, token_payload: AccessTokenPayload = Depends(verify_authorized), token: str = Depends(_get_token)):
-        await self(token_payload)
+    async def return_user(self, token: str = Depends(_get_token)):
+        await self(token)
         return await self.get_current_user(token)
 
 
