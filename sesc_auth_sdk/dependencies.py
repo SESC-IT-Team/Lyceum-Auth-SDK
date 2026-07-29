@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from pydantic_settings.sources.providers import aws
 
+from sesc_auth_sdk.enums.role import Role
 from sesc_auth_sdk.services.requests_service import RequestsService
 from sesc_auth_sdk.enums.scope import Scope
 from sesc_auth_sdk.schemas.token import AccessTokenPayload
@@ -33,6 +34,7 @@ class LyceumAuth(ABC):
 
     def __init__(self, required_scopes: list[Scope] | None = None):
         self._required_scopes = required_scopes
+        self._allowed_roles: list[Role] | None = None
 
     @staticmethod
     async def _get_token(
@@ -53,7 +55,7 @@ class LyceumAuth(ABC):
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
-    async def __call__(self, token: str = Depends(_get_token)) -> AccessTokenPayload:
+    async def __call__(self, token: str = Depends(_get_token), check_roles: bool = True, user_obj: User | None = None) -> AccessTokenPayload:
         token_payload: AccessTokenPayload = await self.verify_authorized(token)
         if self._required_scopes and not all(
                 scope in token_payload.scope for scope in self._required_scopes):
@@ -67,9 +69,16 @@ class LyceumAuth(ABC):
     async def get_current_user(cls, token: str):
         return User(**(await RequestsService.authorized_request(cls.user_service_url + '/me', token)))
 
+    def restrict_roles_and_return_user(self, allowed_roles: list[Role]):
+        self._allowed_roles = allowed_roles
+        return self.return_user
+
     async def return_user(self, token: str = Depends(_get_token)):
         await self(token)
-        return await self.get_current_user(token)
+        user = await self.get_current_user(token)
+        if self._allowed_roles and not any(map(lambda r: r in self._allowed_roles, user.roles)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has not any of allowed roles.")
+        return user
 
 
 
