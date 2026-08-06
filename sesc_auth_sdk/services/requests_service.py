@@ -28,6 +28,8 @@ class RequestsService:
                             if response.status == 403:
                                 raise HTTPException(response.status, response.reason)
                             raise Exception(f"Unexpected status: {response.status} {await response.json()}")
+                        if response.status == 204:
+                            return None
                         return await response.json()
             except HTTPException:
                 raise
