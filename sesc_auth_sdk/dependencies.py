@@ -55,7 +55,7 @@ class LyceumAuth(ABC):
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token.")
 
-    async def __call__(self, token: str = Depends(_get_token), check_roles: bool = True, user_obj: User | None = None) -> AccessTokenPayload:
+    async def __call__(self, token: str = Depends(_get_token)) -> AccessTokenPayload:
         token_payload: AccessTokenPayload = await self.verify_authorized(token)
         if self._required_scopes and not all(
                 scope in token_payload.scope for scope in self._required_scopes):
