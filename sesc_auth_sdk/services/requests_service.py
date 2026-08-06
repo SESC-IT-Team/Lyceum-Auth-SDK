@@ -48,7 +48,9 @@ class RequestsService:
             expected_status: int = 200,
             **kwargs
     ) -> Any:
-        kwargs.update({'headers': {'Authorization': f'Bearer {token}'}})
+        headers = kwargs.get('headers', {})
+        headers['Authorization'] = f'Bearer {token}'
+        kwargs['headers'] = headers
         return await RequestsService.request(url, method, retries, timeout, backoff_factor, expected_status, **kwargs)
 
     @staticmethod
