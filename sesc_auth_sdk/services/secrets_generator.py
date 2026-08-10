@@ -1,7 +1,5 @@
 import secrets, hashlib, base64
 
-from sesc_auth_sdk.services import JWKSManager
-
 
 class SecretsGenerator:
     @staticmethod
