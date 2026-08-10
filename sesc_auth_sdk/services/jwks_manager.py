@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 
 import jwt
 from jose import JWTError
-
-from sesc_auth_sdk.services import M2MAuthService
 from sesc_auth_sdk.settings import TokenValidationSettings
 from sesc_auth_sdk.schemas.jwk import Jwk
 from sesc_auth_sdk.schemas.token import TokenHeaders, AccessTokenPayload, IdTokenPayload
