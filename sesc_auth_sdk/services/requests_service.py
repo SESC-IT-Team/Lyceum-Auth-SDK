@@ -100,3 +100,5 @@ class RequestsService:
             "password": app_password,
             "scope": scope,
         }, headers={'Content-Type': 'application/x-www-form-urlencoded'})
+
+__all__ = ["RequestsService"]

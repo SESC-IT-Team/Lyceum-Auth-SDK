@@ -1,5 +1,7 @@
 import secrets, hashlib, base64
 
+from sesc_auth_sdk.services import JWKSManager
+
 
 class SecretsGenerator:
     @staticmethod
@@ -15,3 +17,5 @@ class SecretsGenerator:
     @staticmethod
     def generate_secret_string() -> str:
         return secrets.token_urlsafe(32)
+
+__all__ = ["SecretsGenerator"]

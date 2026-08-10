@@ -50,3 +50,5 @@ class M2MAuthService:
         return await RequestsService.authorized_request(url, token, method, retries,
                                                         timeout, backoff_factor,
                                                         expected_status, **kwargs)
+
+__all__ = ["M2MAuthService"]
