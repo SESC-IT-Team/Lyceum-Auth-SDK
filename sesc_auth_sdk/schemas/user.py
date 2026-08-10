@@ -15,7 +15,7 @@ class User(BaseModel):
     full_name: str
     gender: Gender
     roles: list[Role]
-    gender: Gender
+    lives_in_dormitory: bool
     birthday: date | None
     grade: int | None
     letter: str | None
