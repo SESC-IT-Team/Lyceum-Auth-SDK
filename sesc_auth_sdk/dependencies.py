@@ -80,6 +80,9 @@ class LyceumAuth(ABC):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User has not any of allowed roles.")
         return user
 
-
-
-
+    async def return_token(
+            self,
+            token: str = Depends(_get_token)
+    ) -> str:
+        await self(token)
+        return token
