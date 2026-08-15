@@ -26,7 +26,7 @@ SDK предоставляет готовые FastAPI-зависимости д�
 * [Получение текущего пользователя](#4-получение-текущего-пользователя)
 * [Ограничение доступа по ролям](#5-ограничение-доступа-по-ролям)
 * [OAuth 2.0 BFF](#6-oauth-20-bff)
-* [Пример структуры проекта](#7-пример-структуры-проекта)
+* [Настройки](#7-настройки)
 * [Краткая памятка](#8-краткая-памятка)
 
 ---
@@ -89,7 +89,7 @@ jwks_manager = JWKSManager(
 
 
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
+    get_jwks_manager = create_jwks_manager_dependency(
         jwks_manager
     )
 
@@ -267,7 +267,7 @@ def me(
 
 ```python
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
+    get_jwks_manager = create_jwks_manager_dependency(
         jwks_manager
     )
 
@@ -351,7 +351,7 @@ sesc_auth_sdk.schemas.user.User
 
 ```python
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
+    get_jwks_manager = create_jwks_manager_dependency(
         jwks_manager
     )
 
@@ -384,36 +384,268 @@ auth_router = create_auth_router(
     AuthRouterSettings(...)
 )
 
-app.include_router(auth_router)
+app.include_router(auth_router, prefix='/auth')
 ```
 
 После этого OAuth 2.0 endpoints будут доступны через подключённый router.
 
-Необходимые для работы роутера настройки должны быть указаны в `.env` согласно `.env.example`.
+---
+
+# 7. Настройки
+
+SDK использует отдельные классы настроек для разных частей авторизации:
+
+* `TokenValidationSettings` — настройки проверки JWT;
+* `AuthRouterSettings` — настройки OAuth 2.0 BFF;
+* `M2MSettings` — настройки service-to-service авторизации.
+
+Все классы основаны на `pydantic-settings`, поэтому значения можно передавать напрямую или загружать из переменных окружения и `.env`.
 
 ---
 
-# 7. Пример структуры проекта
+## 7.1. Настройки проверки токена
 
-Рекомендуемая структура:
+Для настройки `JWKSManager` используется `TokenValidationSettings`:
 
-```text
-project/
-├── app/
-│   ├── __init__.py
-│   ├── auth.py
-│   └── main.py
-│
-├── .env
-├── .env.example
-├── .gitignore
-├── pyproject.toml
-└── uv.lock
+```python
+from sesc_auth_sdk.services.jwks_manager import JWKSManager
+from sesc_auth_sdk.settings import TokenValidationSettings
+
+jwks_manager = JWKSManager(
+    TokenValidationSettings(
+        allowed_issuers=[
+            "https://auth.example.com/application/o/my-app/",
+        ],
+        jwks_ttl=900,
+    )
+)
 ```
 
-### `app/auth.py`
+### Поля `TokenValidationSettings`
 
-В этом файле находится единственный класс авторизации приложения:
+| Поле              | Тип         | По умолчанию       | Описание                                                                                                                 |
+| ----------------- | ----------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `allowed_issuers` | `list[str]` | `—` (обязательный) | Список доверенных `issuer` (`iss`) в JWT. Только токены, выпущенные этими issuer, считаются валидными.                   |
+| `jwks_ttl`        | `int`       | `900`              | Время кеширования JWKS в секундах. Определяет, как долго публичные ключи используются из кеша перед повторной загрузкой. |
+
+---
+
+## 7.2. Настройки OAuth 2.0 BFF
+
+Для `create_auth_router()` используется `AuthRouterSettings`:
+
+```python
+from sesc_auth_sdk.routers.auth_router import create_auth_router
+from sesc_auth_sdk.settings import AuthRouterSettings
+
+auth_router = create_auth_router(
+    AuthRouterSettings(
+        authentik_url="https://auth.example.com",
+        client_id="...",
+        client_secret="...",
+        application_slug="my-app",
+        login_redirect_uri="https://example.com/auth/callback",
+        router_path="/auth",
+    )
+)
+```
+
+### Поля `AuthRouterSettings`
+
+#### Основные OAuth-параметры
+
+| Поле                 | Тип   | По умолчанию       | Описание                                                                                                        |
+| -------------------- | ----- | ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `authentik_url`      | `str` | `—` (обязательный) | Базовый URL сервиса авторизации (Authentik). Используется для OAuth-запросов.                                   |
+| `client_id`          | `str` | `—` (обязательный) | OAuth Client ID приложения.                                                                                     |
+| `client_secret`      | `str` | `—` (обязательный) | OAuth Client Secret. Используется для обмена authorization code на токены.                                      |
+| `application_slug`   | `str` | `—` (обязательный) | Идентификатор приложения в Authentik.                                                                           |
+| `login_redirect_uri` | `str` | `—` (обязательный) | URI, на который пользователь перенаправляется после успешной авторизации.                                       |
+| `router_path`        | `str` | `—` (обязательный) | Базовый путь auth router, например `/auth`. На него выставляются временные oauth cookie и refresh token cookie. |
+
+#### Cookie и безопасность
+
+| Поле              | Тип                                        | По умолчанию | Описание                                                                                |
+| ----------------- | ------------------------------------------ | ------------ | --------------------------------------------------------------------------------------- |
+| `cookie_domain`   | `str \| None`                              | `None`       | Домен, для которого устанавливаются cookies.                                            |
+| `cookie_secure`   | `bool`                                     | `False`      | Если `True`, cookies передаются только по HTTPS. Для production рекомендуется включить. |
+| `cookie_samesite` | `Literal["lax", "strict", "none"] \| None` | `None`       | Политика `SameSite` для cookies.                                                        |
+
+#### TTL токенов и OAuth flow cookies
+
+| Поле                                        | Тип   | По умолчанию | Описание                                                                  |
+| ------------------------------------------- | ----- | ------------ | ------------------------------------------------------------------------- |
+| `refresh_token_ttl`                         | `int` | `2592000`    | Время жизни refresh token cookie в секундах.                              |
+| `access_token_ttl`                          | `int` | `300`        | Время жизни access token cookie в секундах.                               |
+| `oauth_initial_oauth_code_flow_cookies_ttl` | `int` | `300`        | TTL временных cookies OAuth code flow: `state`, `nonce`, `code_verifier`. |
+
+#### Поведение ответа
+
+| Поле                                 | Тип    | По умолчанию | Описание                                              |
+| ------------------------------------ | ------ | ------------ | ----------------------------------------------------- |
+| `send_access_token_in_json_response` | `bool` | `True`       | Если `True`, access token возвращается в JSON-ответе. |
+| `send_access_token_as_cookie`        | `bool` | `False`      | Если `True`, access token сохраняется в cookie.       |
+
+---
+
+## 7.3. Настройки M2M
+
+Для service-to-service авторизации используется `M2MSettings`:
+
+```python
+from sesc_auth_sdk.settings import M2MSettings
+
+m2m_settings = M2MSettings(
+    authentik_url="https://auth.example.com",
+    client_id="...",
+    application_slug="my-service",
+    service_account_username="my-service-account",
+    service_account_app_password="...",
+)
+```
+
+### Поля `M2MSettings`
+
+| Поле                           | Тип   | По умолчанию       | Описание                                                                       |
+| ------------------------------ | ----- | ------------------ | ------------------------------------------------------------------------------ |
+| `authentik_url`                | `str` | `—` (обязательный) | Базовый URL сервиса авторизации.                                               |
+| `client_id`                    | `str` | `—` (обязательный) | OAuth Client ID сервиса.                                                       |
+| `application_slug`             | `str` | `—` (обязательный) | Slug приложения в Authentik.                                                   |
+| `service_account_username`     | `str` | `—` (обязательный) | Имя service account, от имени которого выполняется авторизация.                |
+| `service_account_app_password` | `str` | `—` (обязательный) | App password service account. Используется для machine-to-machine авторизации. |
+| `scope`                        | `str` | `""`               | Запрашиваемый OAuth scope.                                                     |
+
+`service_account_app_password` является чувствительным значением и не должен храниться непосредственно в исходном коде.
+
+---
+
+## 7.4. Переменные окружения
+
+Поскольку настройки SDK основаны на `pydantic-settings`, значения полей можно задавать через переменные окружения или `.env`.
+
+Например:
+
+```env
+AUTHENTIK_URL=https://auth.example.com
+CLIENT_ID=...
+CLIENT_SECRET=...
+APPLICATION_SLUG=my-app
+```
+
+### `_env_file`
+
+Параметр `_env_file` позволяет явно указать файл, из которого будут загружаться настройки:
+
+```python
+from sesc_auth_sdk.settings import TokenValidationSettings
+
+settings = TokenValidationSettings(
+    _env_file=".env",
+)
+```
+
+Это удобно, если конфигурация хранится в нескольких файлах:
+
+```python
+TokenValidationSettings(
+    _env_file=".env.production",
+)
+```
+
+При этом `_env_file` можно указывать непосредственно при создании настроек SDK или задать общий `env_file` в `model_config` собственного класса `Settings`:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
+```
+
+### `_env_prefix`
+
+Параметр `_env_prefix` позволяет добавить префикс к именам переменных окружения.
+
+Например:
+
+```python
+TokenValidationSettings(
+    _env_prefix="auth_",
+)
+```
+
+В этом случае значения настроек будут искаться с соответствующим префиксом:
+
+```env
+AUTH_ALLOWED_ISSUERS=...
+AUTH_JWKS_TTL=900
+```
+
+Это особенно удобно, если приложение использует несколько наборов настроек и необходимо избежать конфликтов между одинаковыми именами переменных.
+
+Например:
+
+```python
+token_validation_settings = TokenValidationSettings(
+    _env_file=".env",
+    _env_prefix="AUTH_",
+)
+```
+
+```env
+AUTH_ALLOWED_ISSUERS=["https://auth.example.com/application/o/my-app/"]
+AUTH_JWKS_TTL=900
+```
+
+> **Рекомендация:** для небольших приложений достаточно общего `.env` и `_env_file`. Если в приложении много компонентов с собственными настройками, рекомендуется использовать `_env_prefix`, чтобы явно разделить переменные окружения разных компонентов.
+
+---
+
+## 7.5. Краткая памятка по настройкам
+
+| Задача                         | Класс                     |
+| ------------------------------ | ------------------------- |
+| Проверка JWT                   | `TokenValidationSettings` |
+| OAuth 2.0 BFF                  | `AuthRouterSettings`      |
+| Управление cookies и сессией   | `AuthRouterSettings`      |
+| Service-to-service авторизация | `M2MSettings`             |
+
+---
+
+## 7.6. Рекомендуемая организация настроек
+
+Рекомендуется хранить настройки SDK вместе с остальными настройками приложения в едином классе `Settings`.
+
+Например:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from sesc_auth_sdk.settings import TokenValidationSettings
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    authentik_url: str = "http://localhost:9000"
+    user_service_url: str = "http://localhost:8000"
+
+    token_validation_settings: TokenValidationSettings = TokenValidationSettings(
+        _env_file=".env",
+    )
+
+
+settings = Settings()
+```
+
+После этого настройки SDK можно использовать из общего объекта `settings`:
 
 ```python
 from sesc_auth_sdk.dependencies import (
@@ -421,44 +653,32 @@ from sesc_auth_sdk.dependencies import (
     create_jwks_manager_dependency,
 )
 from sesc_auth_sdk.services.jwks_manager import JWKSManager
-from sesc_auth_sdk.settings import TokenValidationSettings
+
+from app.settings import settings
 
 
 jwks_manager = JWKSManager(
-    TokenValidationSettings(...)
+    settings.token_validation_settings,
 )
 
 
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
-        jwks_manager
+    get_jwks_manager = create_jwks_manager_dependency(
+        jwks_manager,
     )
 
-    user_service_url = "<URL API пользователей>"
+    user_service_url = settings.user_service_url
 ```
 
-### `app/main.py`
+Такой подход позволяет:
 
-```python
-from fastapi import Depends, FastAPI
+* централизовать конфигурацию приложения;
+* разделить настройки по окружениям;
+* использовать типизацию и валидацию `pydantic-settings`;
+* не хранить секреты непосредственно в исходном коде;
+* передавать готовую конфигурацию в компоненты SDK.
 
-from sesc_auth_sdk.schemas.token import AccessTokenPayload
-
-from app.auth import Auth
-
-
-app = FastAPI()
-
-
-@app.get("/")
-def index(
-    payload: AccessTokenPayload = Depends(Auth()),
-):
-    return {
-        "message": "Hello!",
-        "subject": payload.sub,
-    }
-```
+> **Рекомендация:** не создавайте отдельные глобальные `BaseSettings` для каждой части приложения. Предпочтительнее иметь один объект `Settings`, который содержит настройки приложения и необходимые настройки `sesc_auth_sdk`.
 
 ---
 
@@ -470,7 +690,7 @@ def index(
 
 ```python
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
+    get_jwks_manager = create_jwks_manager_dependency(
         jwks_manager
     )
 ```
@@ -514,7 +734,7 @@ jwks_manager = JWKSManager(
 
 
 class Auth(LyceumAuth):
-    _get_jwks_manager = create_jwks_manager_dependency(
+    get_jwks_manager = create_jwks_manager_dependency(
         jwks_manager
     )
 ```
