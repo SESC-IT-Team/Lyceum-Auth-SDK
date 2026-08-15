@@ -29,7 +29,7 @@ class LyceumAuth(ABC):
 
     @staticmethod
     @abstractmethod
-    async def _get_jwks_manager() -> JWKSManager:
+    async def get_jwks_manager() -> JWKSManager:
         ...
 
     def __init__(self, required_scopes: list[Scope] | None = None):
@@ -47,7 +47,7 @@ class LyceumAuth(ABC):
 
     @classmethod
     async def verify_authorized(cls, token: str | None = Depends(_get_token)) -> AccessTokenPayload:
-        jwks_manager = await cls._get_jwks_manager()
+        jwks_manager = await cls.get_jwks_manager()
         if not token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         try:
@@ -67,7 +67,7 @@ class LyceumAuth(ABC):
 
     @classmethod
     async def get_current_user(cls, token: str):
-        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/me', token)))
+        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/api/v1/users/me', token)))
 
     def restrict_roles_and_return_user(self, allowed_roles: list[Role]):
         self._allowed_roles = allowed_roles

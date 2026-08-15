@@ -13,9 +13,9 @@ REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION = HTTPException(status_code=status.HTTP_4
 REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "invalid_grant", "error_description": "The provided refresh_token is invalid, expired, or revoked."})
 GRANT_TYPE_NOT_SUPPORTED_EXCEPTION = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "unsupported_grant_type", "error_description": "The authorization grant type is not supported by the authorization server."})
 
-def create_auth_router(settings: AuthRouterSettings, prefix: str = '/auth') -> APIRouter:
+def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
     jwks_manager = JWKSManager(TokenValidationSettings(allowed_issuers=[f'{settings.authentik_url}/application/o/{settings.application_slug}/']))
-    router = APIRouter(prefix=prefix)
+    router = APIRouter()
 
     def _set_initial_oauth_code_flow_cookies(response: Response, state: str, code_verifier: str, nonce: str):
         response.set_cookie(key='oauth_code_verifier',
