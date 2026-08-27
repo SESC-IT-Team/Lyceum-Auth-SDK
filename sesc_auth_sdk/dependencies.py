@@ -67,7 +67,7 @@ class LyceumAuth(ABC):
 
     @classmethod
     async def get_current_user(cls, token: str):
-        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/api/v1/users/me', token)))
+        return User(**(await RequestsService.authorized_request(cls.user_service_url + '/v1/users/me', token)))
 
     def restrict_roles_and_return_user(self, allowed_roles: list[Role]):
         self._allowed_roles = allowed_roles
