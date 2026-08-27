@@ -2,3 +2,4 @@
 .venv
 sesc_auth_sdk.egg-info
 .idea/
+**/__pycache__/**

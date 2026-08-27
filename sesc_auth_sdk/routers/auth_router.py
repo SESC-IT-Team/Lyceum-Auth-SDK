@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Response, Request, HTTPException, status
 
 from sesc_auth_sdk.settings.auth_router_settings import AuthRouterSettings
@@ -12,6 +14,8 @@ from sesc_auth_sdk.settings import TokenValidationSettings
 REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "invalid_grant", "error_description": "The provided authorization code, state, nonce or code_verifier is invalid, expired, or revoked."})
 REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "invalid_grant", "error_description": "The provided refresh_token is invalid, expired, or revoked."})
 GRANT_TYPE_NOT_SUPPORTED_EXCEPTION = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "unsupported_grant_type", "error_description": "The authorization grant type is not supported by the authorization server."})
+
+logger = logging.getLogger(__name__)
 
 def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
     jwks_manager = JWKSManager(TokenValidationSettings(allowed_issuers=[f'{settings.authentik_url}/application/o/{settings.application_slug}/']))
@@ -105,6 +109,18 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
         cookie_nonce = request.cookies.get('oauth_nonce')
         _clear_initial_oauth_code_flow_cookies(response)
         if not cookie_code_verifier or not cookie_state or not code or not state or state != cookie_state or not cookie_nonce:
+            logger.warning(
+                "OAuth code exchange rejected: missing or mismatched flow data "
+                "(has_code=%s, has_state=%s, has_cookie_state=%s, "
+                "state_matches=%s, has_code_verifier=%s, has_nonce=%s, path=%s)",
+                bool(code),
+                bool(state),
+                bool(cookie_state),
+                bool(state and cookie_state and state == cookie_state),
+                bool(cookie_code_verifier),
+                bool(cookie_nonce),
+                request.url.path,
+            )
             raise REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION
         try:
             token_response = AuthentikTokenResponse(**(await RequestsService.exchange_code(settings.authentik_url, code, cookie_code_verifier,
@@ -113,21 +129,43 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
             access_payload = await jwks_manager.verify_access_token(token_response.access_token)
             id_payload = await jwks_manager.verify_id_token(token_response.id_token)
             if not cookie_nonce or id_payload.nonce != cookie_nonce or access_payload.nonce != cookie_nonce:
+                logger.warning(
+                    "OAuth code exchange rejected: token nonce validation failed "
+                    "(id_nonce_matches=%s, access_nonce_matches=%s, path=%s)",
+                    bool(cookie_nonce and id_payload.nonce == cookie_nonce),
+                    bool(cookie_nonce and access_payload.nonce == cookie_nonce),
+                    request.url.path,
+                )
                 raise REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION
             return _construct_token_response(response, token_response)
-        except Exception:
+        except Exception as exception:
+            logger.exception(
+                "OAuth code exchange failed while requesting or validating tokens "
+                "(exception_type=%s, exception=%s, path=%s)",
+                type(exception).__name__,
+                exception,
+                request.url.path,
+            )
             raise REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION
 
     @router.post("/refresh", response_model_exclude_unset=True)
     async def refresh(request: Request, response: Response) -> TokenResponse:
         refresh_token = request.cookies.get('refresh_token')
         if not refresh_token:
+            logger.warning("Refresh token request rejected: refresh token cookie is missing (path=%s)", request.url.path)
             raise REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION
         try:
             token_response = AuthentikTokenResponse(**(await RequestsService.refresh_token(settings.authentik_url, refresh_token,
                                                                                            settings.client_id, settings.client_secret)))
             return _construct_token_response(response, token_response)
-        except Exception:
+        except Exception as exception:
+            logger.exception(
+                "Refresh token request failed while requesting or processing tokens "
+                "(exception_type=%s, exception=%s, path=%s)",
+                type(exception).__name__,
+                exception,
+                request.url.path,
+            )
             raise REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION
 
 
@@ -137,11 +175,19 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
         _clear_refresh_token_cookie(response)
         _clear_access_token_cookie(response)
         if not refresh_token:
+            logger.warning("Logout rejected: refresh token cookie is missing (path=%s)", request.url.path)
             raise REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION
         try:
             await RequestsService.revoke_refresh_token(settings.authentik_url, refresh_token,
                                                  settings.client_id, settings.client_secret)
-        except Exception:
+        except Exception as exception:
+            logger.exception(
+                "Logout failed while revoking the refresh token "
+                "(exception_type=%s, exception=%s, path=%s)",
+                type(exception).__name__,
+                exception,
+                request.url.path,
+            )
             return LogoutResponse(refresh_token_revoked=False)
         return LogoutResponse(refresh_token_revoked=True)
 
