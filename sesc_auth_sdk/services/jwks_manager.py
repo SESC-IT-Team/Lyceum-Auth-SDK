@@ -2,10 +2,16 @@ from datetime import datetime, timedelta
 
 import jwt
 from jose import JWTError
+
 from sesc_auth_sdk.settings import TokenValidationSettings
 from sesc_auth_sdk.schemas.jwk import Jwk
 from sesc_auth_sdk.schemas.token import TokenHeaders, AccessTokenPayload, IdTokenPayload
 from sesc_auth_sdk.services.requests_service import RequestsService
+from logging import getLogger
+
+logger = getLogger(__name__)
+
+
 
 class JWKSManager:
     def __init__(self, settings: TokenValidationSettings):
@@ -39,10 +45,11 @@ class JWKSManager:
             unverified_headers = TokenHeaders(**jwt.get_unverified_header(token))
             kid = unverified_headers.kid
             if not kid:
+                logger.warning(f"Invalid token headers")
                 raise JWTError("Field kid missed in headers of token")
             iss: str = payload_type(**jwt.decode(token, options={"verify_signature": False})).iss
             if iss not in self._settings.allowed_issuers:
-                raise JWTError("Token issued by untrusted issuer")
+                raise JWTError(f"Token issued by untrusted issuer, {iss=}")
             key = await self.get_key(iss, kid)
             if not key:
                 raise JWTError("Public key not found in JWKS")

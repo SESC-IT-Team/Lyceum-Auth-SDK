@@ -18,7 +18,7 @@ GRANT_TYPE_NOT_SUPPORTED_EXCEPTION = HTTPException(status_code=status.HTTP_400_B
 logger = logging.getLogger(__name__)
 
 def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
-    jwks_manager = JWKSManager(TokenValidationSettings(allowed_issuers=[f'{settings.authentik_url}/application/o/{settings.application_slug}/']))
+    jwks_manager = JWKSManager(TokenValidationSettings(allowed_application_slugs=[settings.application_slug], internal_authentik_url=settings.internal_authentik_url))
     router = APIRouter()
 
     def _set_initial_oauth_code_flow_cookies(response: Response, state: str, code_verifier: str, nonce: str):
@@ -123,7 +123,7 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
             )
             raise REJECT_EXCHANGE_CODE_REQUEST_EXCEPTION
         try:
-            token_response = AuthentikTokenResponse(**(await RequestsService.exchange_code(settings.authentik_url, code, cookie_code_verifier,
+            token_response = AuthentikTokenResponse(**(await RequestsService.exchange_code(settings.internal_authentik_url, code, cookie_code_verifier,
                                                                                            settings.client_id, settings.client_secret,
                                                                                            settings.login_redirect_uri)))
             access_payload = await jwks_manager.verify_access_token(token_response.access_token)
@@ -155,7 +155,7 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
             logger.warning("Refresh token request rejected: refresh token cookie is missing (path=%s)", request.url.path)
             raise REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION
         try:
-            token_response = AuthentikTokenResponse(**(await RequestsService.refresh_token(settings.authentik_url, refresh_token,
+            token_response = AuthentikTokenResponse(**(await RequestsService.refresh_token(settings.internal_authentik_url, refresh_token,
                                                                                            settings.client_id, settings.client_secret)))
             return _construct_token_response(response, token_response)
         except Exception as exception:
@@ -178,8 +178,8 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
             logger.warning("Logout rejected: refresh token cookie is missing (path=%s)", request.url.path)
             raise REJECT_REFRESH_TOKEN_REQUEST_EXCEPTION
         try:
-            await RequestsService.revoke_refresh_token(settings.authentik_url, refresh_token,
-                                                 settings.client_id, settings.client_secret)
+            await RequestsService.revoke_refresh_token(settings.internal_authentik_url, refresh_token,
+                                                       settings.client_id, settings.client_secret)
         except Exception as exception:
             logger.exception(
                 "Logout failed while revoking the refresh token "

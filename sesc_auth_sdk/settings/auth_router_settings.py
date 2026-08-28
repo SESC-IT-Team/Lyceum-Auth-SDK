@@ -5,6 +5,7 @@ from sesc_auth_sdk.settings.base_settings import Settings
 
 class AuthRouterSettings(Settings):
     authentik_url: str
+    internal_authentik_url: str
     client_id: str
     client_secret: str
     application_slug: str
