@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Response, Request, HTTPException, status
+from fastapi import APIRouter, Response, Request, HTTPException, status, Query
 
 from sesc_auth_sdk.settings.auth_router_settings import AuthRouterSettings
 from sesc_auth_sdk.schemas.token import TokenResponse, AuthentikTokenResponse, LogoutResponse, ExchangeCodeRequest
@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
     jwks_manager = JWKSManager(TokenValidationSettings(allowed_application_slugs=[settings.application_slug], internal_authentik_url=settings.internal_authentik_url))
     router = APIRouter()
+
+    def _generate_end_session_url(next_: str | None) -> str:
+        url = f'{settings.authentik_url}/application/o/{settings.application_slug}/end-session/'
+        if next_:
+            url += f'?next={next_}'
+        return url
+
+    def _generate_authorization_url(scope: str, code_challenge: str, state: str, nonce: str) -> str:
+        return f'{settings.authentik_url}/application/o/authorize/?response_type=code&client_id={settings.client_id}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256&state={state}&nonce={nonce}&redirect_uri={settings.login_redirect_uri}'
 
     def _set_initial_oauth_code_flow_cookies(response: Response, state: str, code_verifier: str, nonce: str):
         response.set_cookie(key='oauth_code_verifier',
@@ -96,9 +105,8 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
         code_verifier, code_challenge = SecretsGenerator.generate_pkce()
         state = SecretsGenerator.generate_secret_string()
         nonce = SecretsGenerator.generate_secret_string()
-        url = f'{settings.authentik_url}/application/o/authorize/?response_type=code&client_id={settings.client_id}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256&state={state}&nonce={nonce}&redirect_uri={settings.login_redirect_uri}'
         _set_initial_oauth_code_flow_cookies(response, state, code_verifier, nonce)
-        return AuthorizationUrlResponse(authorization_url=url)
+        return AuthorizationUrlResponse(authorization_url=_generate_authorization_url(scope, code_challenge, state, nonce))
 
     @router.post("/exchange_code", response_model_exclude_unset=True)
     async def exchange_code(body: ExchangeCodeRequest, request: Request, response: Response) -> TokenResponse:
@@ -170,7 +178,7 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
 
 
     @router.post('/logout')
-    async def logout(request: Request, response: Response) -> LogoutResponse:
+    async def logout(request: Request, response: Response, next_: str | None = Query(default=None, alias='next')) -> LogoutResponse:
         refresh_token = request.cookies.get('refresh_token')
         _clear_refresh_token_cookie(response)
         _clear_access_token_cookie(response)
@@ -188,7 +196,7 @@ def create_auth_router(settings: AuthRouterSettings) -> APIRouter:
                 exception,
                 request.url.path,
             )
-            return LogoutResponse(refresh_token_revoked=False)
-        return LogoutResponse(refresh_token_revoked=True)
+            return LogoutResponse(refresh_token_revoked=False, end_session_url=_generate_end_session_url(next_))
+        return LogoutResponse(refresh_token_revoked=True, end_session_url=_generate_end_session_url(next_))
 
     return router

@@ -26,6 +26,7 @@ class AuthentikTokenResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     refresh_token_revoked: bool
+    end_session_url: str
 
 class AccessTokenPayload(BaseModel):
     iss: str

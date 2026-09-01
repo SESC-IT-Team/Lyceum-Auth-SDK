@@ -21,4 +21,3 @@ class AuthRouterSettings(Settings):
     oauth_initial_oauth_code_flow_cookies_ttl: int = 300  # 5 mins
     send_access_token_in_json_response: bool = True
     send_access_token_as_cookie: bool = False
-    _env_file: str | None = None
